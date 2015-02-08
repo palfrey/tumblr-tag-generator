@@ -8,13 +8,14 @@
 	)
 	(:use
 		[clojure.walk :only [keywordize-keys]]
-		[tumblr-tag-generator.oauth :only [run-oauth consumer]]
+		[tumblr-tag-generator.oauth :only [run-oauth consumer config_file]]
 		[slingshot.slingshot :only [throw+]]
+		[clojure.java.io]
 	)
 	(:gen-class)
 )
 
-(defn read-config [] (edn/read-string (slurp "config.edn")))
+(defn read-config [] (edn/read-string (slurp config_file)))
 
 (defn reblog-url [config] (str "http://api.tumblr.com/v2/blog/" (:hostname config) "/post/reblog"))
 
@@ -60,30 +61,37 @@
 	(->
 		(remove #(seq-contains? existing (:reblog_key %)) items)
 		((partial map #(client/post (reblog-url config) (gen-reblog (assoc % :api_key (:consumer-key config)) config))))
-  ;;((partial map #(gen-reblog (assoc % :api_key (:consumer-key config)) config))))
 	)
 )
 
 (defn dopost [config]
+	(println "Starting to post to" (:hostname config))
 	(let [existing (existing-posts config)
 		  topost (items config)
 		  posted (post-items config topost existing)
-		  ]
+		]
 		(doseq [resp posted]
 			;; wait for server response synchronously
 			(if (not= (:status @resp) 201)
 				(throw+ {:type :bad-response :status (:status @resp) :query @resp})
 			)
 		)
+		(println "Finished posting")
 	)
 )
 
 (defn -main
 	[& args]
-	(let [config (read-config)]
-		(if (contains? config :oauth_token)
-			(dopost config)
-			(run-oauth config)
+	(if (not (.exists (as-file config_file)))
+		(do
+			(println (str "Can't find config file '" config_file "'"))
+			(System/exit 1)
+		)
+		(let [config (read-config)]
+			(if (contains? config :oauth_token)
+				(dopost config)
+				(run-oauth config)
+			)
 		)
 	)
 )

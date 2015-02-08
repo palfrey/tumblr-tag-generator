@@ -10,11 +10,14 @@
 		[ring.util.response :as response]
 		[clojure.pprint :as pprint]
 	)
-	(:use [compojure.core])
+	(:use
+		[compojure.core]
+	)
 )
 
 (def request-token (atom nil))
 (def config (atom nil))
+(def config_file "config.edn")
 
 (defn consumer [config] (oauth/make-consumer (:consumer-key config) (:consumer-secret config)
                                        "http://www.tumblr.com/oauth/request_token"
@@ -39,9 +42,9 @@
 (defn token-printer [req]
 	(binding [pprint/*print-right-margin* 80]
 		(let [config (with-out-str (pprint/pprint (merge @config (:params req))))]
-			(spit "config.edn" config)
+			(spit config_file config)
 			(println "Press Ctrl+C to quit the program, then restart")
-			(str "Written the following to config.edn<br><pre>\n" config "</pre><br />Close the program and restart it.")
+			(str "Written the following to " config_file "<br><pre>\n" config "</pre><br />Close the program and restart it.")
 		)
 	)
 )
