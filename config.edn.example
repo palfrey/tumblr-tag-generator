@@ -1,0 +1,5 @@
+{
+ :consumer-key "YOUR_CONSUMER_KEY",
+ :consumer-secret "YOUR_CONSUMER_SECRET",
+ :hostname "YOUR_TUMBLR",
+ :tag "SOME_TAG"}
