@@ -1,5 +1,5 @@
-(defproject tumblr-tag-generator "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+(defproject tumblr-tag-generator "0.1.0"
+  :description "A generator of Tumblr blogs based on a tag to search for"
   :dependencies [
 				 [org.clojure/clojure "1.6.0"]
 				 [org.clojure/data.json "0.2.3"]

@@ -54,16 +54,12 @@
   (GET "/tokens" [] token-printer)
 )
 
-(defn do-auth []
-	(reset! request-token (generate-request-token))
-	(browse/browse-url (auth-uri))
-)
-
 (def app (handler/site main-routes))
 
 (defn run-oauth [configure]
 	(println "No OAuth2 config, so opening up browser for Tumblr auth")
 	(reset! config configure)
-	(do-auth)
+	(reset! request-token (generate-request-token))
+	(browse/browse-url (auth-uri))
 	(server/run-server app {:port 3000})
 )
