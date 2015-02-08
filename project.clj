@@ -7,6 +7,7 @@
 				 [http-kit "2.1.16"]
 				 [compojure "1.3.1"]
 				 [javax.servlet/servlet-api "2.5"]
+				 [slingshot "0.12.1"]
 				 ]
   :plugins [[lein-ring "0.8.11"]]
   :main ^:skip-aot tumblr-tag-generator.core

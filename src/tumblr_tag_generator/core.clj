@@ -6,8 +6,11 @@
 		[clojure.data.json :as json]
 		[clojure.pprint :as pprint]
 	)
-	(:use [clojure.walk :only [keywordize-keys]]
-		  [tumblr-tag-generator.oauth :only [run-oauth consumer]])
+	(:use
+		[clojure.walk :only [keywordize-keys]]
+		[tumblr-tag-generator.oauth :only [run-oauth consumer]]
+		[slingshot.slingshot :only [throw+]]
+	)
 	(:gen-class)
 )
 
@@ -29,16 +32,6 @@
 	)
 )
 
-(defn -main
-	[& args]
-	(let [config (read-config)]
-		(if (contains? config :oauth_token)
-			(println "Config ready")
-			(run-oauth config)
-		)
-	)
-)
-
 (defn items [config] (->
 	@(client/get "http://api.tumblr.com/v2/tagged" {:query-params {:tag (:tag config) :api_key (:consumer-key config)}})
 	:body
@@ -48,28 +41,49 @@
 	((partial map #(select-keys % [:id :reblog_key :type :format])))
 ))
 
+(defn existing-posts [config] (->
+	@(client/get
+		(str "http://api.tumblr.com/v2/blog/" (:hostname config) "/posts")
+		{:query-params {:api_key (:consumer-key config)}}
+	)
+	:body
+	json/read-str
+	keywordize-keys
+	:response
+	:posts
+	((partial map :reblog_key))
+))
 
-(defn post-items [config items]
-  (->
-   items
-  ((partial map #(client/post (reblog-url config) (gen-reblog (assoc % :api_key (:consumer-key config)) config))))
+(defn seq-contains? [coll target] (some #(= target %) coll))
+
+(defn post-items [config items existing]
+	(->
+		(remove #(seq-contains? existing (:reblog_key %)) items)
+		((partial map #(client/post (reblog-url config) (gen-reblog (assoc % :api_key (:consumer-key config)) config))))
   ;;((partial map #(gen-reblog (assoc % :api_key (:consumer-key config)) config))))
-  )
+	)
 )
 
-(def futures (items (read-config)))
+(defn dopost [config]
+	(let [existing (existing-posts config)
+		  topost (items config)
+		  posted (post-items config topost existing)
+		  ]
+		(doseq [resp posted]
+			;; wait for server response synchronously
+			(if (not= (:status @resp) 201)
+				(throw+ {:type :bad-response :status (:status @resp) :query @resp})
+			)
+		)
+	)
+)
 
-futures
-(list (first futures))
-
-(def posted (post-items (read-config) (list (first futures))))
-
-
-(gen-reblog (first futures) (read-config))
-
-posted
-
-(doseq [resp posted]
-    ;; wait for server response synchronously
-    (println @resp " status: " (:status @resp))
+(defn -main
+	[& args]
+	(let [config (read-config)]
+		(if (contains? config :oauth_token)
+			(dopost config)
+			(run-oauth config)
+		)
+	)
 )
